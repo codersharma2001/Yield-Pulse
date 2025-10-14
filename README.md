@@ -34,6 +34,17 @@ pnpm dev
 
 The `dev` script fans out to each workspace via Turborepo. Individual workspaces expose their own scripts (`pnpm --filter @yield-dashboard/web dev`, etc.).
 
+## Deployment
+
+### Netlify (frontend)
+
+This repo ships with `netlify.toml`, so connecting the repository to Netlify automatically picks up the Next.js build.
+
+1. Set required frontend environment variables in the Netlify dashboard (`NEXT_PUBLIC_API_BASE_URL`, RPC URLs, Tenderly keys, etc.).
+2. Ensure the API is reachable from the deployed site and update `NEXT_PUBLIC_API_BASE_URL` accordingly.
+3. Trigger a deploy—Netlify runs `pnpm --filter @yield-dashboard/web build` and publishes `apps/web/.next` using the official Next.js adapter.
+
+
 ## Next Steps (per delivery plan)
 
 1. Flesh out ERC-4626 vault, factory, bridge adapters, and metrics registry contracts with full access control and testing harnesses.

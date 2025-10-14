@@ -8,6 +8,7 @@ const VARIANTS = {
   success: "bg-success/10 text-success",
   warning: "bg-warning/10 text-warning",
   danger: "bg-danger/10 text-danger",
+  outline: "border border-border/80 bg-transparent text-foreground dark:border-white/20 dark:text-white",
   accent: "bg-accent/10 text-accent"
 } as const;
 
