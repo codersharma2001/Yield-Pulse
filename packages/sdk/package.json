@@ -9,10 +9,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./sample-data": {
+      "types": "./dist/sample-data.d.ts",
+      "import": "./dist/sample-data.js"
     }
   },
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --sourcemap",
+    "build": "tsup src/index.ts src/sample-data.ts --format esm --dts --sourcemap",
     "lint": "eslint . --ext .ts",
     "test": "vitest run",
     "dev": "tsup src/index.ts --watch",

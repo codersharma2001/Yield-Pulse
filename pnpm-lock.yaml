@@ -14,6 +14,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@fastify/cors':
+        specifier: 9.0.0
+        version: 9.0.0
+      '@yield-dashboard/sdk':
+        specifier: workspace:^
+        version: link:../../packages/sdk
       fastify:
         specifier: 4.25.1
         version: 4.25.1
@@ -84,6 +90,9 @@ importers:
       '@wagmi/core':
         specifier: 1.4.12
         version: 1.4.12(@types/react@18.2.40)(react@18.2.0)(typescript@5.4.5)(viem@1.21.1)
+      '@yield-dashboard/sdk':
+        specifier: workspace:^
+        version: link:../../packages/sdk
       class-variance-authority:
         specifier: 0.7.0
         version: 0.7.0
@@ -989,6 +998,13 @@ packages:
       ajv: 8.17.1
       ajv-formats: 2.1.1(ajv@8.17.1)
       fast-uri: 2.4.0
+    dev: false
+
+  /@fastify/cors@9.0.0:
+    resolution: {integrity: sha512-KVsBFs2jZHbtN4vI/jJFaeRHXr3htB3koquGD5TwQQt/lmspyrS1a2UOBTlMOC/5hawC81vdoCzmiR03HbjdXg==}
+    dependencies:
+      fastify-plugin: 4.5.0
+      mnemonist: 0.39.6
     dev: false
 
   /@fastify/error@3.4.1:
@@ -4779,6 +4795,12 @@ packages:
       ufo: 1.6.1
     dev: true
 
+  /mnemonist@0.39.6:
+    resolution: {integrity: sha512-A/0v5Z59y63US00cRSLiloEIw3t5G+MiKz4BhX21FI+YBJXBOGW0ohFxTxO08dsOYlzxo87T7vGfZKYp2bcAWA==}
+    dependencies:
+      obliterator: 2.0.5
+    dev: false
+
   /motion@10.16.2:
     resolution: {integrity: sha512-p+PurYqfUdcJZvtnmAqu5fJgV2kR0uLFQuBKtLeFVTrYEVllI99tiOTSefVNYuip9ELTEkepIIDftNdze76NAQ==}
     dependencies:
@@ -4927,6 +4949,10 @@ packages:
   /object-hash@3.0.0:
     resolution: {integrity: sha512-RSn9F68PjH9HqtltsSnqYC1XXoWe9Bju5+213R98cNGttag9q9yAOTzdbsqvIa7aNm5WffBZFpWYr2aWrklWAw==}
     engines: {node: '>= 6'}
+
+  /obliterator@2.0.5:
+    resolution: {integrity: sha512-42CPE9AhahZRsMNslczq0ctAEtqk8Eka26QofnqC346BZdHDySk3LWka23LI7ULIw11NmltpiLagIq8gBozxTw==}
+    dev: false
 
   /ofetch@1.4.1:
     resolution: {integrity: sha512-QZj2DfGplQAr2oj9KzceK9Hwz6Whxazmn85yYeVuS3u9XTMOGMRx0kO95MQ+vLsj/S/NwBDMMLU5hpxvI6Tklw==}

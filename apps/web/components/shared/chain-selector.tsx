@@ -6,26 +6,45 @@ import { Check, ChevronDown } from "lucide-react";
 import { useChainId, useSwitchNetwork } from "wagmi";
 
 import { Button } from "@/components/ui/button";
-import { supportedChains } from "@/lib/wagmi";
+import { getSupportedChains } from "@/lib/wagmi";
 import { cn } from "@/lib/utils";
+import { useNetworkEnv } from "@/store/network-env";
+
+type DisplayChain = {
+  id: number;
+  name: string;
+  symbol: string;
+};
 
 export function ChainSelector() {
   const activeChainId = useChainId();
+  const env = useNetworkEnv((state) => state.env);
   const { switchNetwork, error, isLoading, pendingChainId, chains } = useSwitchNetwork({
     chainId: activeChainId
   });
 
-  const fallbackChains = useMemo(
-    () =>
-      supportedChains.map((chain) => ({
-        id: chain.id,
-        name: chain.name,
-        nativeCurrency: { symbol: chain.symbol }
-      })),
-    []
+  const supported = useMemo(() => getSupportedChains(env), [env]);
+  const allowedIds = useMemo(() => new Set(supported.map((chain) => chain.id)), [supported]);
+
+  const fallbackChains = useMemo<DisplayChain[]>(
+    () => supported.map((chain) => ({ id: chain.id, name: chain.name, symbol: chain.symbol })),
+    [supported]
   );
 
-  const availableChains = chains.length ? chains : fallbackChains;
+  const availableChains = useMemo<DisplayChain[]>(() => {
+    const source = chains.length ? chains : fallbackChains;
+    return source
+      .filter((chain) => allowedIds.has(chain.id))
+      .map((chain) => ({
+        id: chain.id,
+        name: chain.name,
+        symbol:
+          "nativeCurrency" in chain && chain.nativeCurrency?.symbol
+            ? chain.nativeCurrency.symbol
+            : supported.find((item) => item.id === chain.id)?.symbol ?? "ETH"
+      }));
+  }, [chains, fallbackChains, allowedIds, supported]);
+
   const selected = useMemo(
     () => availableChains.find((chain) => chain.id === activeChainId) ?? availableChains[0],
     [availableChains, activeChainId]
@@ -74,7 +93,7 @@ export function ChainSelector() {
                   <>
                     <div>
                       <p className="font-medium">{chain.name}</p>
-                      <p className="text-xs text-slate-950/60 dark:text-slate-200/70">{chain.nativeCurrency.symbol}</p>
+                      <p className="text-xs text-slate-950/60 dark:text-slate-200/70">{chain.symbol}</p>
                     </div>
                     {optionSelected ? <Check className="h-4 w-4 text-accent" /> : null}
                   </>
