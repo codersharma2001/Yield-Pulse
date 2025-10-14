@@ -89,7 +89,7 @@ export function VaultExplorer() {
                         <tr key={vault.id} className="hover:bg-slate-950/5 dark:hover:bg-white/5">
                           <td className="px-6 py-4">
                             <div className="flex flex-col">
-                              <span className="font-semibold text-foreground">{vault.name}</span>
+                              <span className="font-semibold text-foreground dark:text-white">{vault.name}</span>
                               <span className="text-xs text-slate-950/60 dark:text-slate-200/70">{vault.symbol}</span>
                             </div>
                           </td>

@@ -6,6 +6,7 @@ import { VaultCharts } from "@/components/vaults/vault-charts";
 import { VaultActionPanel } from "@/components/vaults/action-panel";
 import { Card, CardContent } from "@/components/ui/card";
 import type { NetworkEnvironment } from "@/store/network-env";
+import { cn } from "@/lib/utils";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
@@ -34,41 +35,48 @@ export default async function VaultPage({ params, searchParams }: VaultPageProps
   }
 
   const { vault, snapshots } = detail;
+  const riskTone: Record<string, string> = {
+    low: "text-success",
+    medium: "text-warning",
+    high: "text-danger"
+  };
 
   return (
     <section className="space-y-8">
-      <div className="rounded-3xl border border-border bg-white/90 p-8 dark:bg-slate-950/70">
-        <p className="text-sm uppercase tracking-wide text-slate-950/60">Vault</p>
+      <div className="rounded-3xl border border-border bg-white/90 p-8 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-100">
+        <p className="text-sm uppercase tracking-wide text-slate-950/60 dark:text-slate-300/80">Vault</p>
         <div className="mt-2 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold">{vault.name}</h1>
-            <p className="text-sm text-slate-950/60 dark:text-slate-200/70">
+            <h1 className="text-3xl font-semibold text-slate-950 dark:text-white">{vault.name}</h1>
+            <p className="text-sm text-slate-950/60 dark:text-slate-300/80">
               {vault.protocolId.toUpperCase()} • Chain ID {vault.chainId} • Asset {vault.asset} • Env {env}
             </p>
           </div>
-          <div className="grid gap-1 text-right text-sm text-slate-950/60 dark:text-slate-200/70">
-            <span className="text-xs uppercase tracking-wider">APY (7d)</span>
-            <span className="text-2xl font-semibold text-accent">{(vault.apy.d7 * 100).toFixed(2)}%</span>
+          <div className="grid gap-1 text-right text-sm text-slate-950/60 dark:text-slate-300/80">
+            <span className="text-xs uppercase tracking-wider dark:text-slate-400">APY (7d)</span>
+            <span className="text-2xl font-semibold text-accent dark:text-emerald-300">{(vault.apy.d7 * 100).toFixed(2)}%</span>
           </div>
         </div>
         <dl className="mt-6 grid gap-4 text-sm md:grid-cols-4">
           <div>
-            <dt className="text-slate-950/60 dark:text-slate-200/60">TVL (USD)</dt>
-            <dd className="text-base font-semibold text-foreground">${vault.tvlUsd.toLocaleString()}</dd>
+            <dt className="text-slate-950/60 dark:text-slate-400">TVL (USD)</dt>
+            <dd className="text-base font-semibold text-foreground dark:text-white">${vault.tvlUsd.toLocaleString()}</dd>
           </div>
           <div>
-            <dt className="text-slate-950/60 dark:text-slate-200/60">Capacity</dt>
-            <dd className="text-base font-semibold text-foreground">
+            <dt className="text-slate-950/60 dark:text-slate-400">Capacity</dt>
+            <dd className="text-base font-semibold text-foreground dark:text-white">
               {Math.round(vault.utilization * 100)}% / ${vault.capUsd.toLocaleString()}
             </dd>
           </div>
           <div>
-            <dt className="text-slate-950/60 dark:text-slate-200/60">Risk band</dt>
-            <dd className="capitalize text-base font-semibold text-foreground">{vault.risk}</dd>
+            <dt className="text-slate-950/60 dark:text-slate-400">Risk band</dt>
+            <dd className={cn("capitalize text-base font-semibold", riskTone[vault.risk] ?? "text-warning")}>
+              {vault.risk}
+            </dd>
           </div>
           <div>
-            <dt className="text-slate-950/60 dark:text-slate-200/60">Last updated</dt>
-            <dd className="text-base font-semibold text-foreground">
+            <dt className="text-slate-950/60 dark:text-slate-400">Last updated</dt>
+            <dd className="text-base font-semibold text-foreground dark:text-white">
               {new Date(vault.lastUpdated).toLocaleString()}
             </dd>
           </div>

@@ -77,23 +77,23 @@ export function ChainSelector() {
           leaveFrom="transform scale-100 opacity-100"
           leaveTo="transform scale-95 opacity-0"
         >
-          <Listbox.Options className="absolute right-0 mt-2 w-56 origin-top-right rounded-xl border border-border bg-card p-2 text-sm shadow-md focus:outline-none">
+          <Listbox.Options className="absolute right-0 mt-2 w-56 origin-top-right rounded-2xl border border-border/80 bg-white/95 p-2 text-sm text-slate-900 shadow-xl shadow-sky-500/10 backdrop-blur focus:outline-none dark:border-white/10 dark:bg-slate-900/95 dark:text-slate-100">
             {availableChains.map((chain) => (
               <Listbox.Option
                 key={chain.id}
                 value={chain.id}
                 className={({ active }) =>
                   cn(
-                    "flex cursor-pointer items-center justify-between rounded-lg px-3 py-2",
-                    active ? "bg-slate-950/5" : ""
+                    "flex cursor-pointer items-center justify-between rounded-xl px-3 py-2 transition-colors",
+                    active ? "bg-slate-950/5 dark:bg-white/10" : ""
                   )
                 }
               >
                 {({ selected: optionSelected }) => (
                   <>
                     <div>
-                      <p className="font-medium">{chain.name}</p>
-                      <p className="text-xs text-slate-950/60 dark:text-slate-200/70">{chain.symbol}</p>
+                      <p className="font-medium text-slate-950 dark:text-white">{chain.name}</p>
+                      <p className="text-xs text-slate-950/60 dark:text-slate-300/75">{chain.symbol}</p>
                     </div>
                     {optionSelected ? <Check className="h-4 w-4 text-accent" /> : null}
                   </>

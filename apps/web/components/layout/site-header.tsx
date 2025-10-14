@@ -59,7 +59,7 @@ export function SiteHeader() {
                 className={cn(
                   "rounded-xl px-3 py-2 text-sm font-medium text-slate-950/70 transition-all hover:bg-slate-950/5 hover:text-slate-950/90 dark:text-slate-200/70 dark:hover:bg-white/10 dark:hover:text-white/90",
                   pathname === link.href
-                    ? "bg-slate-950/5 text-foreground shadow-sm ring-1 ring-slate-200/80 dark:bg-white/10 dark:text-foreground dark:ring-white/20"
+                    ? "bg-slate-950/5 text-foreground shadow-sm ring-1 ring-slate-200/80 dark:bg-white/15 dark:text-white dark:ring-white/30"
                     : ""
                 )}
               >
