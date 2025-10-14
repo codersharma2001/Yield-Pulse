@@ -1,5 +1,5 @@
 [build]
-  command = "pnpm --filter @yield-dashboard/web build"
+  command = "pnpm turbo run build --filter=@yield-dashboard/web"
   publish = "apps/web/.next"
 
 [build.environment]
