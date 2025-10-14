@@ -1,0 +1,30 @@
+# Node / pnpm
+node_modules/
+.pnpm-store/
+.pnp.*
+
+# Build outputs
+apps/**/.next/
+dist/
+.out/
+build/
+coverage/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Foundry
+packages/contracts/out/
+packages/contracts/cache/
+packages/contracts/broadcast/
+
+# Misc
+.DS_Store
+.idea/
+.vscode/

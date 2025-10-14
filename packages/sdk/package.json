@@ -1,0 +1,37 @@
+{
+  "name": "@yield-dashboard/sdk",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --sourcemap",
+    "lint": "eslint . --ext .ts",
+    "test": "vitest run",
+    "dev": "tsup src/index.ts --watch",
+    "clean": "rimraf dist",
+    "format": "prettier --check ."
+  },
+  "dependencies": {
+    "viem": "1.19.7"
+  },
+  "devDependencies": {
+    "@types/node": "20.11.19",
+    "@typescript-eslint/eslint-plugin": "6.20.0",
+    "@typescript-eslint/parser": "6.20.0",
+    "eslint": "8.56.0",
+    "eslint-config-prettier": "9.1.0",
+    "prettier": "3.1.1",
+    "rimraf": "5.0.5",
+    "tsup": "7.2.0",
+    "typescript": "5.3.3",
+    "vitest": "1.2.2"
+  }
+}

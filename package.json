@@ -1,0 +1,17 @@
+{
+  "name": "yield-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@8.15.4",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "turbo run format",
+    "clean": "turbo run clean --parallel"
+  },
+  "devDependencies": {
+    "turbo": "1.13.3"
+  }
+}
