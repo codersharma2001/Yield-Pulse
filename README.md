@@ -1,59 +1,124 @@
-# Yield Dashboard Monorepo
+# YieldPulse ⚡
 
-> Cross-chain ERC-4626 vault control plane spanning Aave, Curve, and Pendle integrations.
+Full-stack command center for ERC-4626 yield vaults. YieldPulse brings vault analytics, Tenderly-powered simulations, and wallet execution together so you can scout and act on strategies across Aave, Curve, Pendle, and more from one dashboard.
 
-This repository hosts the full-stack implementation for the Yield Dashboard project. The initial scaffold establishes a Turborepo-powered pnpm workspace with dedicated packages for smart contracts, a TypeScript SDK, shared UI primitives, a Fastify-based API/indexer service, and a Next.js frontend.
+---
 
-## Structure
+## Highlights
+- **Unified analytics:** Normalises ERC-4626 metrics into comparable APY, TVL, and capacity signals across chains.
+- **Actionable simulations:** Tenderly-backed preflight checks for deposits/withdrawals directly inside the UI.
+- **Wallet-native UX:** Wagmi/WalletConnect flows with chain selectors, environment toggles, and responsive design.
+- **Modular stack:** Fastify API/indexer, TypeScript SDK, Foundry contracts, and Next.js frontend wired by Turborepo.
 
+---
+
+## Monorepo Layout
 ```
 root/
   apps/
-    web/      # Next.js frontend (wallet flows, Tenderly simulations)
-    api/      # Fastify API + indexer aggregation services
+    api/        # Fastify API, indexer façade, Tenderly proxy
+    web/        # Next.js frontend (YieldPulse UI)
   packages/
-    contracts/  # Foundry smart contracts
-    sdk/        # TypeScript SDK for frontend/backend consumption
-    ui/         # Shared React component library
-  ops/
-    subgraphs/  # The Graph/Substreams configs per protocol
-    docker/     # Container and deployment assets
-  docs/
-    diagrams/   # Mermaid sources + rendered exports
-  .github/workflows/  # CI pipelines (to be added)
+    sdk/        # Shared TypeScript SDK (types + helpers)
+    contracts/  # Foundry contracts and libraries
+    ui/         # Shared component primitives (placeholder)
+  docs/         # Diagrams, playbooks
+  ops/          # Subgraph/Substreams configs, docker assets
 ```
 
-## Getting Started
+---
 
-> Tooling assumes Node.js 20.x and Foundry installed locally. All commands are pnpm-based.
+## Tech Stack
+- **Build system:** Turborepo + pnpm workspaces
+- **Frontend:** Next.js 14, React 18, Tailwind, Framer Motion, Wagmi, Viem
+- **Backend:** Fastify 4, Zod validation, Tenderly integration hooks
+- **Contracts:** Foundry + OpenZeppelin + forge-std tooling
+- **Tooling:** TypeScript everywhere, ESLint/Prettier, Vitest, tsup, tsx
+
+---
+
+## Quick Start
+> Requirements: Node.js 20.x, pnpm 8.x, Foundry (for contract builds)
 
 ```bash
 pnpm install
-pnpm dev
+pnpm dev            # runs all dev scripts via Turborepo
 ```
 
-The `dev` script fans out to each workspace via Turborepo. Individual workspaces expose their own scripts (`pnpm --filter @yield-dashboard/web dev`, etc.).
+Common scoped commands:
+```bash
+pnpm --filter @yield-dashboard/web dev     # frontend only
+pnpm --filter @yield-dashboard/api dev     # API only
+pnpm --filter @yield-dashboard/sdk build   # build shared SDK
+pnpm turbo run lint                        # lint all packages
+```
 
-## Deployment
+---
 
-### Netlify (frontend)
+## Environment Variables
 
-This repo ships with `netlify.toml`, so connecting the repository to Netlify automatically picks up the Next.js build.
+### Frontend (`apps/web`)
+Set these in Netlify (or `.env.local` for local dev):
+```
+NEXT_PUBLIC_API_BASE_URL=https://api.your-domain.com
+NEXT_PUBLIC_NETWORK_ENV=testnet            # or mainnet
+NEXT_PUBLIC_WALLETCONNECT_ID=wc_project_id # optional but recommended
+NEXT_PUBLIC_COMMIT_SHA=dev                 # shown in footer, optional
+```
 
-1. Set required frontend environment variables in the Netlify dashboard (`NEXT_PUBLIC_API_BASE_URL`, RPC URLs, Tenderly keys, etc.).
-2. Ensure the API is reachable from the deployed site and update `NEXT_PUBLIC_API_BASE_URL` accordingly.
-3. Trigger a deploy—Netlify runs `pnpm --filter @yield-dashboard/web build` and publishes `apps/web/.next` using the official Next.js adapter.
+### API (`apps/api`)
+```
+PORT=3001
+LOG_LEVEL=info
+CORS_ORIGIN=https://yieldpulse.app        # comma-separated list allowed
+NETWORK_ENV=testnet                       # mainnet | testnet
+TENDERLY_PROJECT=...
+TENDERLY_ACCESS_KEY=...
+```
+> Configure additional secrets (Redis, RPC URLs, etc.) as integrations land.
 
+---
 
-## Next Steps (per delivery plan)
+## Deployment Playbook
 
-1. Flesh out ERC-4626 vault, factory, bridge adapters, and metrics registry contracts with full access control and testing harnesses.
-2. Stand up The Graph/Substreams indexers and wire the Fastify API with caching, risk checks, and Tenderly simulation proxying.
-3. Build the production-ready Next.js UI with wagmi, chain selectors, vault tables, charts, and end-to-end simulation + deposit flows.
-4. Harden security: Foundry fuzz/invariant suites, Slither, upgrade guards, and documentation (Security.md, runbooks, OpenAPI specs).
+### Frontend → Netlify
+Netlify picks up configuration from `netlify.toml`.
+1. Connect the Git repository.
+2. Add the frontend env vars above via the Netlify UI (mark secrets as such).
+3. Trigger a deploy. Netlify runs `pnpm turbo run build --filter=@yield-dashboard/web` which builds dependencies (SDK, etc.) before the Next.js app. Output is served from `apps/web/.next` via the official Netlify Next.js adapter.
 
-> ⚠️ **Disclaimer:** This project is for demonstration and educational use only. It does not constitute financial advice.
+### API → Your Choice (Render/Fly.io/etc.)
+1. Build: `pnpm --filter @yield-dashboard/api build`.
+2. Deploy the resulting Node service (or create a Docker image).
+3. Provide the API env vars on the host (PORT, LOG_LEVEL, Tenderly keys, RPC endpoints, etc.).
+4. Expose HTTPS endpoint and point the frontend’s `NEXT_PUBLIC_API_BASE_URL` to it.
+
+### Contracts / Indexer
+Contracts are built with Foundry: `cd packages/contracts && forge build`. Deployment scripts / addresses will live under `ops/` (work in progress).
+
+---
+
+## Testing & Scripts
+- `pnpm turbo run lint` – ESLint across workspaces.
+- `pnpm turbo run test` – Vitest suites (SDK/API as they land).
+- `pnpm turbo run build` – Full build matrix with dependency graph.
+- `pnpm --filter @yield-dashboard/api dev` – Fastify server with hot reload.
+- `pnpm --filter @yield-dashboard/web dev` – Next.js dev server with HMR.
+
+---
+
+## Roadmap
+1. Wire live indexers + caching into the API, replace seeded data.
+2. Add authenticated operator flows: vault management, risk overrides.
+3. Expand contract suite with ERC-4626 factory, strategy adapters, security reviews.
+4. Harden testing (Foundry fuzzing, Slither, e2e Playwright) and document runbooks.
+
+---
+
+## Disclaimer
+YieldPulse is for demonstration and educational purposes only. Nothing here constitutes financial advice. Use at your own risk.
+
+---
 
 ## License
-
-Apache-2.0
+[Apache-2.0](./LICENSE)
