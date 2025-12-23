@@ -107,7 +107,7 @@ export function VaultActionPanel({ vaultId, chainId, env, asset, symbol, vaultAd
               key={value}
               type="button"
               size="sm"
-              variant={action === value ? "default" : "outline"}
+              variant={action === value ? "primary" : "outline"}
               className="w-full"
               onClick={() => setAction(value)}
             >
