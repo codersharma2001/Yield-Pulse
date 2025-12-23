@@ -5,8 +5,7 @@
 
 import type { SimulationRequest } from "@yield-dashboard/sdk";
 
-// Import the sample data functions from the API package
-// These will be replaced with the vault aggregator in production
+// Import the sample data functions from the SDK sample-data module
 import {
   SAMPLE_VAULTS_MAP,
   SAMPLE_VAULT_DETAIL,
@@ -14,7 +13,7 @@ import {
   SAMPLE_SIMULATION_OK,
   SAMPLE_SIMULATION_FAIL,
   type NetworkEnvironment
-} from "@yield-dashboard/sdk";
+} from "@yield-dashboard/sdk/sample-data";
 
 export async function getVaults(env?: "mainnet" | "testnet") {
   const environment = (env || "testnet") as NetworkEnvironment;
