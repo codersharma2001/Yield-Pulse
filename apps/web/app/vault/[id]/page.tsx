@@ -8,10 +8,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { NetworkEnvironment } from "@/store/network-env";
 import { cn } from "@/lib/utils";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
-
 async function fetchVaultDetail(id: string, env: NetworkEnvironment): Promise<VaultDetailResponse | null> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/vaults/${encodeURIComponent(id)}?env=${env}`, {
+  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+  const response = await fetch(`${baseUrl}/api/v1/vaults/${encodeURIComponent(id)}?env=${env}`, {
     next: { revalidate: 20 }
   });
   if (!response.ok) {

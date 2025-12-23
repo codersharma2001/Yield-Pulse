@@ -6,7 +6,8 @@ import type {
   VaultListResponse
 } from "@yield-dashboard/sdk";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+// Use relative URLs for API routes (works on both localhost and Vercel)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 
 const withEnv = (url: string, env?: string) => {
   if (!env) return url;
