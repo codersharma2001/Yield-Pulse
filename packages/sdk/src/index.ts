@@ -1,8 +1,15 @@
+export interface ProtocolMetadata {
+  name: string;
+  websiteUrl: string;
+  vaultUrl: string;
+}
+
 export interface VaultMetadata {
   id: string;
   chainId: number;
   asset: string;
   protocolId: string;
+  protocolMetadata: ProtocolMetadata;
   name: string;
   symbol: string;
   vaultAddress: `0x${string}`;

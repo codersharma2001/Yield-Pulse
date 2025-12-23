@@ -1,7 +1,8 @@
 import {
   SAMPLE_POSITIONS,
   SAMPLE_VAULTS_MAP,
-  SAMPLE_VAULT_DETAIL
+  SAMPLE_VAULT_DETAIL,
+  generateSnapshots
 } from "@yield-dashboard/sdk/sample-data";
 import type {
   SimulationRequest,
@@ -12,33 +13,63 @@ import type {
 } from "@yield-dashboard/sdk";
 import type { NetworkEnvironment } from "@yield-dashboard/sdk/sample-data";
 
-import { env } from "../env";
+import { env } from "../env.js";
+import { vaultAggregator } from "../services/vault-aggregator.js";
 
 const now = () => Math.floor(Date.now() / 1000);
 
 const pickDataset = (override?: NetworkEnvironment) => SAMPLE_VAULTS_MAP[override ?? env.NETWORK_ENV];
 
 export const getVaults = async (overrideEnv?: NetworkEnvironment): Promise<VaultListResponse> => {
-  const dataset = pickDataset(overrideEnv);
-  return {
-    ...dataset,
-    asOf: now()
-  };
+  try {
+    // Use vault aggregator to get real vaults with live data
+    const vaults = await vaultAggregator.getVaults(overrideEnv ?? env.NETWORK_ENV);
+    return {
+      vaults,
+      asOf: now()
+    };
+  } catch (error) {
+    console.error("[sample.ts] Error fetching vaults from aggregator:", error);
+    // Fallback to sample data
+    const dataset = pickDataset(overrideEnv);
+    return {
+      ...dataset,
+      asOf: now()
+    };
+  }
 };
 
 export const getVaultDetail = async (
   id: string,
   overrideEnv?: NetworkEnvironment
 ): Promise<VaultDetailResponse | null> => {
-  const dataset = pickDataset(overrideEnv);
-  if (!dataset.vaults.some((vault) => vault.id === id)) {
-    return null;
+  try {
+    // Use vault aggregator to get vault
+    const vault = await vaultAggregator.getVault(id, overrideEnv ?? env.NETWORK_ENV);
+    if (!vault) {
+      return null;
+    }
+
+    // Generate historical snapshots (using existing sample data logic)
+    const snapshots = generateSnapshots(vault);
+
+    return {
+      vault,
+      snapshots
+    };
+  } catch (error) {
+    console.error(`[sample.ts] Error fetching vault ${id}:`, error);
+    // Fallback to sample data
+    const dataset = pickDataset(overrideEnv);
+    if (!dataset.vaults.some((v) => v.id === id)) {
+      return null;
+    }
+    const detail = SAMPLE_VAULT_DETAIL[id];
+    if (!detail) {
+      return null;
+    }
+    return detail;
   }
-  const detail = SAMPLE_VAULT_DETAIL[id];
-  if (!detail) {
-    return null;
-  }
-  return detail;
 };
 
 export const getUserPositions = async (

@@ -48,62 +48,40 @@ const RISK_VOLATILITY: Record<"low" | "medium" | "high", number> = {
 };
 
 /**
- * Mean reversion strength (0-1)
- * Higher values pull APY more strongly toward target averages
+ * Mean reversion factor for realistic APY behavior
+ * Higher values = faster return to mean APY
  */
-const MEAN_REVERSION = 0.25;
+const MEAN_REVERSION = 0.15;
 
 /**
- * Number of historical days to generate
+ * Number of days of historical data
  */
-const SNAPSHOT_DAYS = 30;
+const DAYS_OF_HISTORY = 30;
 
 /**
  * Generates realistic APY snapshots that match vault's d7 and d30 averages
- * Uses mean-reverting random walk with risk-based volatility
+ * Uses a mean-reverting random walk to simulate realistic yield fluctuations
  */
-function generateApySnapshots(vault: VaultListItem, days: number = SNAPSHOT_DAYS): VaultSnapshotPoint[] {
-  const { id, apy: { d7, d30 }, risk } = vault;
-
-  // Create deterministic random generator from vault ID
-  const seed = hashString(id);
+function generateApySnapshots(vault: VaultListItem): VaultSnapshotPoint[] {
+  const seed = hashString(vault.id);
   const random = createSeededRandom(seed);
+  const volatility = RISK_VOLATILITY[vault.risk];
+  const meanApy = vault.apy.d30;
 
-  // Get volatility for this vault's risk level
-  const volatility = RISK_VOLATILITY[risk];
-
+  const now = Date.now();
   const snapshots: VaultSnapshotPoint[] = [];
-  const now = Math.floor(Date.now() / 1000);
+  let currentApy = meanApy;
 
-  // Start at current APY (use d7 as most recent)
-  let currentApy = d7;
+  for (let i = DAYS_OF_HISTORY; i >= 0; i--) {
+    const timestamp = now - i * 24 * 60 * 60 * 1000;
 
-  // Generate backwards in time (most recent first)
-  for (let i = 0; i < days; i++) {
-    const timestamp = now - i * 86_400;
+    // Mean-reverting random walk
+    const randomShock = (random() - 0.5) * 2 * volatility;
+    const meanReversionTerm = (meanApy - currentApy) * MEAN_REVERSION;
+    currentApy += randomShock + meanReversionTerm;
 
-    // Calculate target APY for this day (linear interpolation between d7 and d30)
-    // Days 0-6: target closer to d7
-    // Days 7-29: transition from d7 to d30
-    let targetApy: number;
-    if (i < 7) {
-      targetApy = d7;
-    } else {
-      const ratio = (i - 7) / (days - 7);
-      targetApy = d7 * (1 - ratio) + d30 * ratio;
-    }
-
-    // Apply mean reversion toward target
-    const meanReversionDelta = (targetApy - currentApy) * MEAN_REVERSION;
-
-    // Add random walk component with volatility
-    const randomNoise = (random() * 2 - 1) * volatility;
-
-    // Update current APY
-    currentApy = currentApy + meanReversionDelta + randomNoise;
-
-    // Ensure APY stays positive and reasonable
-    currentApy = Math.max(0.001, currentApy);
+    // Ensure APY stays realistic (non-negative and reasonable)
+    currentApy = Math.max(0.001, Math.min(currentApy, 0.5));
 
     snapshots.push({ t: timestamp, v: currentApy });
   }
@@ -114,26 +92,19 @@ function generateApySnapshots(vault: VaultListItem, days: number = SNAPSHOT_DAYS
 /**
  * Generates TVL snapshots with realistic variation
  */
-function generateTvlSnapshots(
-  tvlBase: number,
-  seed: number,
-  days: number = SNAPSHOT_DAYS
-): VaultSnapshotPoint[] {
-  const random = createSeededRandom(seed + 1); // +1 to differ from APY seed
-  const now = Math.floor(Date.now() / 1000);
+function generateTvlSnapshots(baseTvl: number, seed: number): VaultSnapshotPoint[] {
+  const random = createSeededRandom(seed + 42);
+  const now = Date.now();
   const snapshots: VaultSnapshotPoint[] = [];
 
-  for (let i = 0; i < days; i++) {
-    const timestamp = now - i * 86_400;
-
-    // Use a combination of sine wave and random noise for TVL variation
-    const sineComponent = Math.sin(i / 5) * 0.08;
-    const randomComponent = (random() - 0.5) * 0.06;
-    const variation = tvlBase * (sineComponent + randomComponent);
+  for (let i = DAYS_OF_HISTORY; i >= 0; i--) {
+    const timestamp = now - i * 24 * 60 * 60 * 1000;
+    const variation = (random() - 0.5) * 0.2; // ±10% variation
+    const tvl = baseTvl * (1 + variation);
 
     snapshots.push({
       t: timestamp,
-      v: Math.max(tvlBase * 0.5, tvlBase + variation) // Ensure TVL doesn't go below 50%
+      v: Math.max(0, tvl)
     });
   }
 
@@ -160,6 +131,11 @@ const TESTNET_VAULTS: VaultListResponse = {
       chainId: 1,
       asset: "DAI",
       protocolId: "spark",
+      protocolMetadata: {
+        name: "Spark Protocol",
+        websiteUrl: "https://spark.fi",
+        vaultUrl: "https://app.spark.fi/sdai"
+      },
       name: "sDAI (Maker Savings DAI)",
       symbol: "sDAI",
       vaultAddress: "0x83f20f44975d03b1b09e64809b757c47f942beea",
@@ -176,6 +152,11 @@ const TESTNET_VAULTS: VaultListResponse = {
       chainId: 1,
       asset: "frxETH",
       protocolId: "frax",
+      protocolMetadata: {
+        name: "Frax Finance",
+        websiteUrl: "https://frax.finance",
+        vaultUrl: "https://app.frax.finance/sfrxeth"
+      },
       name: "sfrxETH (Frax Staked frxETH)",
       symbol: "sfrxETH",
       vaultAddress: "0xac3E018457B222d93114458476f3E3416Abbe38F",
@@ -192,6 +173,11 @@ const TESTNET_VAULTS: VaultListResponse = {
       chainId: 1,
       asset: "USDC",
       protocolId: "morpho",
+      protocolMetadata: {
+        name: "Morpho",
+        websiteUrl: "https://morpho.org",
+        vaultUrl: "https://app.morpho.org/vault?vault=0xdd0f28e19c1780eb6396170735d45153d261490d&network=ethereum"
+      },
       name: "Morpho — Gauntlet USDC Prime (GTUSDC)",
       symbol: "GTUSDC",
       vaultAddress: "0xdd0f28e19C1780eb6396170735D45153D261490d",
@@ -208,6 +194,11 @@ const TESTNET_VAULTS: VaultListResponse = {
       chainId: 1,
       asset: "USDC",
       protocolId: "morpho",
+      protocolMetadata: {
+        name: "Morpho",
+        websiteUrl: "https://morpho.org",
+        vaultUrl: "https://app.morpho.org/vault?vault=0xbeef01735c132ada46aa9aa4c54623caa92a64cb&network=ethereum"
+      },
       name: "Morpho — Steakhouse USDC (steakUSDC)",
       symbol: "steakUSDC",
       vaultAddress: "0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB",
@@ -224,6 +215,11 @@ const TESTNET_VAULTS: VaultListResponse = {
       chainId: 1,
       asset: "USDT",
       protocolId: "morpho",
+      protocolMetadata: {
+        name: "Morpho",
+        websiteUrl: "https://morpho.org",
+        vaultUrl: "https://app.morpho.org/vault?vault=0x79fd640000f8563a866322483524a4b48f1ed702&network=ethereum"
+      },
       name: "Morpho — Gauntlet USDT Core",
       symbol: "gUSDT",
       vaultAddress: "0x79FD640000F8563A866322483524a4b48f1Ed702",
@@ -240,6 +236,11 @@ const TESTNET_VAULTS: VaultListResponse = {
       chainId: 1,
       asset: "WETH",
       protocolId: "morpho",
+      protocolMetadata: {
+        name: "Morpho",
+        websiteUrl: "https://morpho.org",
+        vaultUrl: "https://app.morpho.org/vault?vault=0x2371e134e3455e0593363cbf89d3b6cf53740618&network=ethereum"
+      },
       name: "Morpho — Gauntlet WETH Prime",
       symbol: "gWETH",
       vaultAddress: "0x2371e134e3455e0593363cBF89d3b6cf53740618",
@@ -256,6 +257,11 @@ const TESTNET_VAULTS: VaultListResponse = {
       chainId: 1,
       asset: "DAI",
       protocolId: "morpho",
+      protocolMetadata: {
+        name: "Morpho",
+        websiteUrl: "https://morpho.org",
+        vaultUrl: "https://app.morpho.org/vault?vault=0x500331c9ff24d9d11aee6b07734aa72343ea74a5&network=ethereum"
+      },
       name: "Morpho — Gauntlet DAI Core",
       symbol: "gDAI",
       vaultAddress: "0x500331c9fF24D9d11aee6B07734Aa72343EA74a5",
@@ -292,6 +298,9 @@ export const SAMPLE_VAULTS_MAP: Record<NetworkEnvironment, VaultListResponse> = 
   testnet: TESTNET_VAULTS,
   mainnet: MAINNET_VAULTS
 };
+
+// Export snapshot generation function for use with real vault data
+export const generateSnapshots = makeSnapshots;
 
 export const SAMPLE_POSITIONS: UserPositionsResponse = {
   address: "0x000000000000000000000000000000000000dEaD",

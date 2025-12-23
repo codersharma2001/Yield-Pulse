@@ -10,6 +10,7 @@ import { formatNumber, formatPercent } from "@/lib/utils";
 import { useVaultsQuery } from "@/lib/queries";
 import { getSupportedChains } from "@/lib/wagmi";
 import { useNetworkEnv } from "@/store/network-env";
+import { ProtocolBadge } from "./protocol-badge";
 
 const RISK_TONE: Record<string, { label: string; variant: ComponentProps<typeof Badge>["variant"] }> = {
   low: { label: "Low", variant: "success" },
@@ -94,7 +95,9 @@ export function VaultExplorer() {
                             </div>
                           </td>
                           <td className="px-6 py-4">{chainNameMap.get(vault.chainId) ?? vault.chainId}</td>
-                          <td className="px-6 py-4 capitalize">{vault.protocolId}</td>
+                          <td className="px-6 py-4">
+                            <ProtocolBadge protocol={vault.protocolMetadata} />
+                          </td>
                           <td className="px-6 py-4 font-semibold text-accent">{formatPercent(vault.apy.d7)}</td>
                           <td className="px-6 py-4">${formatNumber(vault.tvlUsd)}</td>
                           <td className="px-6 py-4">

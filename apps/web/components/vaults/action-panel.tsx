@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useNetwork } from "wagmi";
 import { useMutation } from "@tanstack/react-query";
 
 import type { SimulationRequest, SimulationResult } from "@yield-dashboard/sdk";
@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import type { NetworkEnvironment } from "@/store/network-env";
+import { TransactionConfirmationModal } from "./transaction-confirmation-modal";
+import { useVaultDeposit, useVaultWithdraw } from "@/lib/hooks/use-vault-transaction";
+import type { Address } from "viem";
 
 interface VaultActionPanelProps {
   vaultId: string;
@@ -17,14 +20,24 @@ interface VaultActionPanelProps {
   env: NetworkEnvironment;
   asset: string;
   symbol: string;
+  vaultAddress: Address;
+  assetAddress: Address;
+  vaultName: string;
 }
 
-export function VaultActionPanel({ vaultId, chainId, env, asset, symbol }: VaultActionPanelProps) {
+export function VaultActionPanel({ vaultId, chainId, env, asset, symbol, vaultAddress, assetAddress, vaultName }: VaultActionPanelProps) {
   const { address } = useAccount();
+  const { chain } = useNetwork();
   const [amount, setAmount] = useState("1000");
   const [action, setAction] = useState<SimulationRequest["action"]>("deposit");
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Transaction hooks
+  const depositHook = useVaultDeposit(vaultAddress, assetAddress);
+  const withdrawHook = useVaultWithdraw(vaultAddress);
+  const currentHook = action === "deposit" ? depositHook : withdrawHook;
 
   const mutation = useMutation({
     mutationFn: (body: SimulationRequest) => api.simulate(body, env),
@@ -39,7 +52,26 @@ export function VaultActionPanel({ vaultId, chainId, env, asset, symbol }: Vault
   });
 
   const canSimulate = Boolean(address) && Number(amount) > 0;
+  const canExecute = Boolean(result?.success && address);
+  const isWrongChain = chain?.id !== chainId;
   const assetLabel = symbol || asset;
+
+  const handleConfirmTransaction = () => {
+    if (action === "deposit") {
+      depositHook.deposit(amount);
+    } else {
+      withdrawHook.withdraw(amount);
+    }
+  };
+
+  const handleCancelTransaction = () => {
+    setIsModalOpen(false);
+    currentHook.reset();
+  };
+
+  const handleProceedToRealTrade = () => {
+    setIsModalOpen(true);
+  };
 
   return (
     <Card className="bg-white/90 dark:bg-slate-950/70">
@@ -115,7 +147,24 @@ export function VaultActionPanel({ vaultId, chainId, env, asset, symbol }: Vault
           {mutation.isPending ? "Simulating…" : `Simulate ${action} ${amount} ${assetLabel}`}
         </Button>
         {!address ? <p className="text-xs">Connect a wallet to run simulations.</p> : null}
+        {isWrongChain ? (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            Please switch to the correct network (Chain ID: {chainId}) to execute transactions.
+          </p>
+        ) : null}
         {errorMessage ? <p className="text-xs text-red-500 dark:text-red-300">{errorMessage}</p> : null}
+
+        {/* Proceed with Real Trade Button */}
+        {result?.success && canExecute && !isWrongChain && (
+          <Button
+            size="md"
+            variant="primary"
+            onClick={handleProceedToRealTrade}
+            className="w-full bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+          >
+            Proceed with Real Trade →
+          </Button>
+        )}
 
         <div className="rounded-lg border border-border/70 bg-white/60 p-3 text-xs dark:border-white/10 dark:bg-white/5">
           <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">Latest simulation</p>
@@ -158,6 +207,26 @@ export function VaultActionPanel({ vaultId, chainId, env, asset, symbol }: Vault
           )}
         </div>
       </CardContent>
+
+      {/* Transaction Confirmation Modal */}
+      <TransactionConfirmationModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          currentHook.reset();
+        }}
+        simulation={result}
+        vaultDetails={{
+          name: vaultName,
+          asset,
+          action,
+          amount,
+          chainId,
+        }}
+        transactionState={currentHook.state}
+        onConfirm={handleConfirmTransaction}
+        onCancel={handleCancelTransaction}
+      />
     </Card>
   );
 }
