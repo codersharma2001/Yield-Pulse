@@ -2,86 +2,268 @@ import type {
   SimulationResult,
   UserPositionsResponse,
   VaultDetailResponse,
-  VaultListResponse
+  VaultListResponse,
+  VaultListItem,
+  VaultSnapshotPoint
 } from "./index";
 
 export type NetworkEnvironment = "mainnet" | "testnet";
 
-const makeSnapshots = (tvlBase: number): VaultDetailResponse["snapshots"] => ({
-  apy: Array.from({ length: 14 }).map((_, idx) => ({
-    t: Math.floor(Date.now() / 1000) - idx * 86_400,
-    v: 0.03 + Math.sin(idx / 3) * 0.002
-  })),
-  tvl: Array.from({ length: 14 }).map((_, idx) => ({
-    t: Math.floor(Date.now() / 1000) - idx * 86_400,
-    v: tvlBase + Math.cos(idx / 4) * (tvlBase * 0.04)
-  }))
-});
+/**
+ * Creates a simple hash from a string for seeding
+ */
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Creates a seeded pseudo-random number generator (Mulberry32 algorithm)
+ * Returns a function that generates deterministic random numbers [0, 1)
+ */
+function createSeededRandom(seed: number): () => number {
+  let state = seed;
+  return function() {
+    state += 0x6D2B79F5;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Daily volatility levels by risk profile
+ * These values represent realistic DeFi yield fluctuations
+ */
+const RISK_VOLATILITY: Record<"low" | "medium" | "high", number> = {
+  low: 0.0008,    // ±0.08% daily swing for stable protocols
+  medium: 0.0015, // ±0.15% daily swing for moderate risk
+  high: 0.0030    // ±0.30% daily swing for high yield strategies
+};
+
+/**
+ * Mean reversion strength (0-1)
+ * Higher values pull APY more strongly toward target averages
+ */
+const MEAN_REVERSION = 0.25;
+
+/**
+ * Number of historical days to generate
+ */
+const SNAPSHOT_DAYS = 30;
+
+/**
+ * Generates realistic APY snapshots that match vault's d7 and d30 averages
+ * Uses mean-reverting random walk with risk-based volatility
+ */
+function generateApySnapshots(vault: VaultListItem, days: number = SNAPSHOT_DAYS): VaultSnapshotPoint[] {
+  const { id, apy: { d7, d30 }, risk } = vault;
+
+  // Create deterministic random generator from vault ID
+  const seed = hashString(id);
+  const random = createSeededRandom(seed);
+
+  // Get volatility for this vault's risk level
+  const volatility = RISK_VOLATILITY[risk];
+
+  const snapshots: VaultSnapshotPoint[] = [];
+  const now = Math.floor(Date.now() / 1000);
+
+  // Start at current APY (use d7 as most recent)
+  let currentApy = d7;
+
+  // Generate backwards in time (most recent first)
+  for (let i = 0; i < days; i++) {
+    const timestamp = now - i * 86_400;
+
+    // Calculate target APY for this day (linear interpolation between d7 and d30)
+    // Days 0-6: target closer to d7
+    // Days 7-29: transition from d7 to d30
+    let targetApy: number;
+    if (i < 7) {
+      targetApy = d7;
+    } else {
+      const ratio = (i - 7) / (days - 7);
+      targetApy = d7 * (1 - ratio) + d30 * ratio;
+    }
+
+    // Apply mean reversion toward target
+    const meanReversionDelta = (targetApy - currentApy) * MEAN_REVERSION;
+
+    // Add random walk component with volatility
+    const randomNoise = (random() * 2 - 1) * volatility;
+
+    // Update current APY
+    currentApy = currentApy + meanReversionDelta + randomNoise;
+
+    // Ensure APY stays positive and reasonable
+    currentApy = Math.max(0.001, currentApy);
+
+    snapshots.push({ t: timestamp, v: currentApy });
+  }
+
+  return snapshots;
+}
+
+/**
+ * Generates TVL snapshots with realistic variation
+ */
+function generateTvlSnapshots(
+  tvlBase: number,
+  seed: number,
+  days: number = SNAPSHOT_DAYS
+): VaultSnapshotPoint[] {
+  const random = createSeededRandom(seed + 1); // +1 to differ from APY seed
+  const now = Math.floor(Date.now() / 1000);
+  const snapshots: VaultSnapshotPoint[] = [];
+
+  for (let i = 0; i < days; i++) {
+    const timestamp = now - i * 86_400;
+
+    // Use a combination of sine wave and random noise for TVL variation
+    const sineComponent = Math.sin(i / 5) * 0.08;
+    const randomComponent = (random() - 0.5) * 0.06;
+    const variation = tvlBase * (sineComponent + randomComponent);
+
+    snapshots.push({
+      t: timestamp,
+      v: Math.max(tvlBase * 0.5, tvlBase + variation) // Ensure TVL doesn't go below 50%
+    });
+  }
+
+  return snapshots;
+}
+
+/**
+ * Creates snapshot data for a vault's historical metrics
+ */
+const makeSnapshots = (vault: VaultListItem): VaultDetailResponse["snapshots"] => {
+  const seed = hashString(vault.id);
+
+  return {
+    apy: generateApySnapshots(vault),
+    tvl: generateTvlSnapshots(vault.tvlUsd, seed)
+  };
+};
 
 const TESTNET_VAULTS: VaultListResponse = {
   asOf: Math.floor(Date.now() / 1000),
   vaults: [
     {
-      id: "421614:0xvaulta",
-      chainId: 421_614,
-      asset: "USDC",
-      protocolId: "aave",
-      name: "USDC Aave v3 (Arbitrum Sepolia)",
-      symbol: "yvUSDC",
-      vaultAddress: "0x1111111111111111111111111111111111111111",
-      assetAddress: "0x2222222222222222222222222222222222222222",
-      apy: { d7: 0.0342, d30: 0.0298 },
+      id: "1:0x83f20f44975d03b1b09e64809b757c47f942beea",
+      chainId: 1,
+      asset: "DAI",
+      protocolId: "spark",
+      name: "sDAI (Maker Savings DAI)",
+      symbol: "sDAI",
+      vaultAddress: "0x83f20f44975d03b1b09e64809b757c47f942beea",
+      assetAddress: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+      apy: { d7: 0.05, d30: 0.048 },
       tvlUsd: 1_245_000,
-      capUsd: 5_000_000,
-      utilization: 0.44,
-      risk: "medium",
+      capUsd: 50_000_000,
+      utilization: 0.62,
+      risk: "low",
       lastUpdated: new Date().toISOString()
     },
     {
-      id: "11155111:0xvaultb",
-      chainId: 11_155_111,
-      asset: "ETH",
-      protocolId: "pendle",
-      name: "WETH Pendle LRT (Sepolia)",
-      symbol: "yvWETH",
-      vaultAddress: "0x3333333333333333333333333333333333333333",
-      assetAddress: "0x4444444444444444444444444444444444444444",
-      apy: { d7: 0.0821, d30: 0.0755 },
+      id: "1:0xac3e018457b222d93114458476f3e3416abbe38f",
+      chainId: 1,
+      asset: "frxETH",
+      protocolId: "frax",
+      name: "sfrxETH (Frax Staked frxETH)",
+      symbol: "sfrxETH",
+      vaultAddress: "0xac3E018457B222d93114458476f3E3416Abbe38F",
+      assetAddress: "0x5E8422345238F34275888049021821E8E08CAa1f",
+      apy: { d7: 0.085, d30: 0.081 },
       tvlUsd: 856_000,
-      capUsd: 2_500_000,
-      utilization: 0.61,
-      risk: "high",
-      lastUpdated: new Date().toISOString()
-    },
-    {
-      id: "80002:0xvaultc",
-      chainId: 80_002,
-      asset: "USDT",
-      protocolId: "curve",
-      name: "USDT Curve LP (Polygon Amoy)",
-      symbol: "yvUSDT",
-      vaultAddress: "0x5555555555555555555555555555555555555555",
-      assetAddress: "0x6666666666666666666666666666666666666666",
-      apy: { d7: 0.045, d30: 0.041 },
-      tvlUsd: 640_000,
-      capUsd: 3_000_000,
-      utilization: 0.32,
+      capUsd: 10_000_000,
+      utilization: 0.41,
       risk: "medium",
       lastUpdated: new Date().toISOString()
     },
     {
-      id: "97:0xvaultd",
-      chainId: 97,
-      asset: "BUSD",
-      protocolId: "aave",
-      name: "BUSD Aave Reserve (BSC Testnet)",
-      symbol: "yvBUSD",
-      vaultAddress: "0x7777777777777777777777777777777777777777",
-      assetAddress: "0x8888888888888888888888888888888888888888",
-      apy: { d7: 0.027, d30: 0.025 },
-      tvlUsd: 420_000,
-      capUsd: 2_000_000,
-      utilization: 0.21,
+      id: "1:0xdd0f28e19c1780eb6396170735d45153d261490d",
+      chainId: 1,
+      asset: "USDC",
+      protocolId: "morpho",
+      name: "Morpho — Gauntlet USDC Prime (GTUSDC)",
+      symbol: "GTUSDC",
+      vaultAddress: "0xdd0f28e19C1780eb6396170735D45153D261490d",
+      assetAddress: "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      apy: { d7: 0.046, d30: 0.044 },
+      tvlUsd: 6_200_000,
+      capUsd: 25_000_000,
+      utilization: 0.52,
+      risk: "medium",
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: "1:0xbeef01735c132ada46aa9aa4c54623caa92a64cb",
+      chainId: 1,
+      asset: "USDC",
+      protocolId: "morpho",
+      name: "Morpho — Steakhouse USDC (steakUSDC)",
+      symbol: "steakUSDC",
+      vaultAddress: "0xBEEF01735c132Ada46AA9aA4c54623cAA92A64CB",
+      assetAddress: "0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+      apy: { d7: 0.051, d30: 0.049 },
+      tvlUsd: 4_150_000,
+      capUsd: 20_000_000,
+      utilization: 0.39,
+      risk: "medium",
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: "1:0x79fd640000f8563a866322483524a4b48f1ed702",
+      chainId: 1,
+      asset: "USDT",
+      protocolId: "morpho",
+      name: "Morpho — Gauntlet USDT Core",
+      symbol: "gUSDT",
+      vaultAddress: "0x79FD640000F8563A866322483524a4b48f1Ed702",
+      assetAddress: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      apy: { d7: 0.043, d30: 0.042 },
+      tvlUsd: 3_800_000,
+      capUsd: 18_000_000,
+      utilization: 0.47,
+      risk: "medium",
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: "1:0x2371e134e3455e0593363cbf89d3b6cf53740618",
+      chainId: 1,
+      asset: "WETH",
+      protocolId: "morpho",
+      name: "Morpho — Gauntlet WETH Prime",
+      symbol: "gWETH",
+      vaultAddress: "0x2371e134e3455e0593363cBF89d3b6cf53740618",
+      assetAddress: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      apy: { d7: 0.062, d30: 0.059 },
+      tvlUsd: 9_750_000,
+      capUsd: 40_000_000,
+      utilization: 0.36,
+      risk: "medium",
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: "1:0x500331c9ff24d9d11aee6b07734aa72343ea74a5",
+      chainId: 1,
+      asset: "DAI",
+      protocolId: "morpho",
+      name: "Morpho — Gauntlet DAI Core",
+      symbol: "gDAI",
+      vaultAddress: "0x500331c9fF24D9d11aee6B07734Aa72343EA74a5",
+      assetAddress: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+      apy: { d7: 0.039, d30: 0.038 },
+      tvlUsd: 5_600_000,
+      capUsd: 22_000_000,
+      utilization: 0.51,
       risk: "low",
       lastUpdated: new Date().toISOString()
     }
@@ -91,85 +273,25 @@ const TESTNET_VAULTS: VaultListResponse = {
 const MAINNET_VAULTS: VaultListResponse = {
   asOf: Math.floor(Date.now() / 1000),
   vaults: [
-    {
-      id: "1:0xvault1",
-      chainId: 1,
-      asset: "USDC",
-      protocolId: "aave",
-      name: "USDC Aave Prime (Ethereum)",
-      symbol: "yvUSDC",
-      vaultAddress: "0x9999999999999999999999999999999999999999",
-      assetAddress: "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-      apy: { d7: 0.0295, d30: 0.0281 },
-      tvlUsd: 12_450_000,
-      capUsd: 50_000_000,
-      utilization: 0.58,
-      risk: "medium",
-      lastUpdated: new Date().toISOString()
-    },
-    {
-      id: "137:0xvault2",
-      chainId: 137,
-      asset: "USDT",
-      protocolId: "curve",
-      name: "USDT Curve Tricrypto (Polygon)",
-      symbol: "yvUSDT",
-      vaultAddress: "0xBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
-      assetAddress: "0xCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
-      apy: { d7: 0.042, d30: 0.0405 },
-      tvlUsd: 8_320_000,
-      capUsd: 25_000_000,
-      utilization: 0.33,
-      risk: "medium",
-      lastUpdated: new Date().toISOString()
-    },
-    {
-      id: "56:0xvault3",
-      chainId: 56,
-      asset: "BUSD",
-      protocolId: "aave",
-      name: "BUSD Passive Yield (BNB Chain)",
-      symbol: "yvBUSD",
-      vaultAddress: "0xDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
-      assetAddress: "0xEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE",
-      apy: { d7: 0.021, d30: 0.0198 },
-      tvlUsd: 6_540_000,
-      capUsd: 18_000_000,
-      utilization: 0.36,
-      risk: "low",
-      lastUpdated: new Date().toISOString()
-    },
-    {
-      id: "42161:0xvault4",
-      chainId: 42_161,
-      asset: "ETH",
-      protocolId: "pendle",
-      name: "ETH Pendle PT (Arbitrum)",
-      symbol: "yvETH",
-      vaultAddress: "0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF",
-      assetAddress: "0x1234123412341234123412341234123412341234",
-      apy: { d7: 0.062, d30: 0.058 },
-      tvlUsd: 9_750_000,
-      capUsd: 30_000_000,
-      utilization: 0.41,
-      risk: "medium",
-      lastUpdated: new Date().toISOString()
-    }
+    ...TESTNET_VAULTS.vaults
   ]
 };
 
-const DETAIL_BY_ID: Record<string, VaultDetailResponse> = {};
+const ALL_VAULTS: VaultListItem[] = [...TESTNET_VAULTS.vaults, ...MAINNET_VAULTS.vaults];
 
-for (const vault of [...TESTNET_VAULTS.vaults, ...MAINNET_VAULTS.vaults]) {
-  DETAIL_BY_ID[vault.id] = { vault, snapshots: makeSnapshots(vault.tvlUsd) };
-}
+const DETAIL_BY_ID: Record<string, VaultDetailResponse> = ALL_VAULTS.reduce((acc, vault) => {
+  acc[vault.id] = {
+    vault,
+    snapshots: makeSnapshots(vault)
+  };
+  return acc;
+}, {} as Record<string, VaultDetailResponse>);
 
+export const SAMPLE_VAULT_DETAIL = DETAIL_BY_ID;
 export const SAMPLE_VAULTS_MAP: Record<NetworkEnvironment, VaultListResponse> = {
   testnet: TESTNET_VAULTS,
   mainnet: MAINNET_VAULTS
 };
-
-export const SAMPLE_VAULT_DETAIL = DETAIL_BY_ID;
 
 export const SAMPLE_POSITIONS: UserPositionsResponse = {
   address: "0x000000000000000000000000000000000000dEaD",
@@ -190,8 +312,8 @@ export const SAMPLE_SIMULATION_OK: SimulationResult = {
   success: true,
   gasEstimate: "210000",
   balanceChanges: [
-    { asset: "USDC", delta: "-1000" },
-    { asset: "yvUSDC", delta: "+995" }
+    { asset: "DAI", delta: "-1000" },
+    { asset: "sDAI", delta: "+995" }
   ]
 };
 

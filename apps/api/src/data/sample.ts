@@ -1,7 +1,5 @@
 import {
   SAMPLE_POSITIONS,
-  SAMPLE_SIMULATION_FAIL,
-  SAMPLE_SIMULATION_OK,
   SAMPLE_VAULTS_MAP,
   SAMPLE_VAULT_DETAIL
 } from "@yield-dashboard/sdk/sample-data";
@@ -61,9 +59,18 @@ export const getUserPositions = async (
   };
 };
 
+import { simulateTenderly } from "../tenderly/simulate";
+
 export const simulateAction = async (request: SimulationRequest): Promise<SimulationResult> => {
-  if (request.amount === "0") {
-    return SAMPLE_SIMULATION_FAIL;
+  // Validate amount
+  if (request.amount === "0" || isNaN(Number(request.amount))) {
+    return {
+      success: false,
+      gasEstimate: "0",
+      reason: "Invalid amount"
+    };
   }
-  return SAMPLE_SIMULATION_OK;
+
+  // Call real Tenderly simulation
+  return simulateTenderly(request);
 };

@@ -89,7 +89,7 @@ export default async function VaultPage({ params, searchParams }: VaultPageProps
             <VaultCharts snapshots={snapshots} />
           </CardContent>
         </Card>
-        <VaultActionPanel vaultId={vault.id} chainId={vault.chainId} env={env} />
+        <VaultActionPanel vaultId={vault.id} chainId={vault.chainId} env={env} asset={vault.asset} symbol={vault.symbol} />
       </div>
     </section>
   );
