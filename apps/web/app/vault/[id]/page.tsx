@@ -7,16 +7,10 @@ import { VaultActionPanel } from "@/components/vaults/action-panel";
 import { Card, CardContent } from "@/components/ui/card";
 import type { NetworkEnvironment } from "@/store/network-env";
 import { cn } from "@/lib/utils";
+import { getVaultDetail } from "@/lib/api/data-service";
 
 async function fetchVaultDetail(id: string, env: NetworkEnvironment): Promise<VaultDetailResponse | null> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '';
-  const response = await fetch(`${baseUrl}/api/v1/vaults/${encodeURIComponent(id)}?env=${env}`, {
-    next: { revalidate: 20 }
-  });
-  if (!response.ok) {
-    return null;
-  }
-  return response.json();
+  return getVaultDetail(id, env);
 }
 
 interface VaultPageProps {

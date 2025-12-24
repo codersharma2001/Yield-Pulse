@@ -10,10 +10,11 @@ import {
   SAMPLE_VAULTS_MAP,
   SAMPLE_VAULT_DETAIL,
   SAMPLE_POSITIONS,
-  SAMPLE_SIMULATION_OK,
-  SAMPLE_SIMULATION_FAIL,
   type NetworkEnvironment
 } from "@yield-dashboard/sdk/sample-data";
+
+// Import real Tenderly simulation
+import { simulateTenderly } from "@/lib/tenderly/simulate";
 
 export async function getVaults(env?: "mainnet" | "testnet") {
   const environment = (env || "testnet") as NetworkEnvironment;
@@ -35,45 +36,15 @@ export async function getUserPositions(address: string, env?: "mainnet" | "testn
 }
 
 export async function simulateAction(request: SimulationRequest) {
-  // Simulate transaction using Tenderly
-  // For now, return success or fail based on simple validation
-
-  try {
-    const amount = parseFloat(request.amount);
-
-    // Simple validation
-    if (amount <= 0) {
-      return {
-        ...SAMPLE_SIMULATION_FAIL,
-        reason: "Amount must be greater than 0"
-      };
-    }
-
-    if (amount > 1000000) {
-      return {
-        ...SAMPLE_SIMULATION_FAIL,
-        reason: "Amount exceeds maximum limit"
-      };
-    }
-
-    // Return success simulation
+  // Validate amount
+  if (request.amount === "0" || isNaN(Number(request.amount))) {
     return {
-      ...SAMPLE_SIMULATION_OK,
-      balanceChanges: [
-        {
-          asset: request.action === "deposit" ? "Input Asset" : "Vault Shares",
-          delta: `-${request.amount}`
-        },
-        {
-          asset: request.action === "deposit" ? "Vault Shares" : "Output Asset",
-          delta: `+${(amount * 0.995).toFixed(2)}` // Simulate 0.5% fee
-        }
-      ]
-    };
-  } catch (error) {
-    return {
-      ...SAMPLE_SIMULATION_FAIL,
-      reason: error instanceof Error ? error.message : "Unknown error"
+      success: false,
+      gasEstimate: "0",
+      reason: "Invalid amount"
     };
   }
+
+  // Call real Tenderly simulation
+  return simulateTenderly(request);
 }

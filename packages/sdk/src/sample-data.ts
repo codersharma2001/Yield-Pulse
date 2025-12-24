@@ -279,7 +279,136 @@ const TESTNET_VAULTS: VaultListResponse = {
 const MAINNET_VAULTS: VaultListResponse = {
   asOf: Math.floor(Date.now() / 1000),
   vaults: [
-    ...TESTNET_VAULTS.vaults
+    ...TESTNET_VAULTS.vaults,
+    // Polygon vaults
+    {
+      id: "137:0x305f25377d0a39ce8a7f39da09dfce1b6e6f2515",
+      chainId: 137,
+      asset: "USDC",
+      protocolId: "aave",
+      protocolMetadata: {
+        name: "Aave V3",
+        websiteUrl: "https://aave.com",
+        vaultUrl: "https://app.aave.com/reserve-overview/?underlyingAsset=0x2791bca1f2de4661ed88a30c99a7a9449aa84174&marketName=proto_polygon_v3"
+      },
+      name: "Aave V3 USDC (Polygon)",
+      symbol: "aPolUSDC",
+      vaultAddress: "0x305f25377d0a39ce8a7f39da09dfce1b6e6f2515",
+      assetAddress: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+      apy: { d7: 0.038, d30: 0.036 },
+      tvlUsd: 12_500_000,
+      capUsd: 50_000_000,
+      utilization: 0.45,
+      risk: "low",
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: "137:0x6d80113e533a2c0fe82eabd35f1875dcea89ea97",
+      chainId: 137,
+      asset: "DAI",
+      protocolId: "aave",
+      protocolMetadata: {
+        name: "Aave V3",
+        websiteUrl: "https://aave.com",
+        vaultUrl: "https://app.aave.com/reserve-overview/?underlyingAsset=0x8f3cf7ad23cd3cadbd9735aff958023239c6a063&marketName=proto_polygon_v3"
+      },
+      name: "Aave V3 DAI (Polygon)",
+      symbol: "aPolDAI",
+      vaultAddress: "0x6d80113e533a2c0fe82eabd35f1875dcea89ea97",
+      assetAddress: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+      apy: { d7: 0.042, d30: 0.040 },
+      tvlUsd: 8_750_000,
+      capUsd: 35_000_000,
+      utilization: 0.38,
+      risk: "low",
+      lastUpdated: new Date().toISOString()
+    },
+    // Arbitrum vaults
+    {
+      id: "42161:0x724dc807b04555b71ed48a6896b6f41593b8c637",
+      chainId: 42161,
+      asset: "USDC",
+      protocolId: "aave",
+      protocolMetadata: {
+        name: "Aave V3",
+        websiteUrl: "https://aave.com",
+        vaultUrl: "https://app.aave.com/reserve-overview/?underlyingAsset=0xaf88d065e77c8cc2239327c5edb3a432268e5831&marketName=proto_arbitrum_v3"
+      },
+      name: "Aave V3 USDC (Arbitrum)",
+      symbol: "aArbUSDC",
+      vaultAddress: "0x724dc807b04555b71ed48a6896b6f41593b8c637",
+      assetAddress: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+      apy: { d7: 0.045, d30: 0.043 },
+      tvlUsd: 15_200_000,
+      capUsd: 60_000_000,
+      utilization: 0.42,
+      risk: "low",
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: "42161:0x82e64f49ed5ec1bc6e43dad4fc8af9bb3a2312ee",
+      chainId: 42161,
+      asset: "DAI",
+      protocolId: "aave",
+      protocolMetadata: {
+        name: "Aave V3",
+        websiteUrl: "https://aave.com",
+        vaultUrl: "https://app.aave.com/reserve-overview/?underlyingAsset=0xda10009cbd5d07dd0cecc66161fc93d7c9000da1&marketName=proto_arbitrum_v3"
+      },
+      name: "Aave V3 DAI (Arbitrum)",
+      symbol: "aArbDAI",
+      vaultAddress: "0x82e64f49ed5ec1bc6e43dad4fc8af9bb3a2312ee",
+      assetAddress: "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+      apy: { d7: 0.041, d30: 0.039 },
+      tvlUsd: 10_600_000,
+      capUsd: 45_000_000,
+      utilization: 0.36,
+      risk: "low",
+      lastUpdated: new Date().toISOString()
+    },
+    // BSC vaults
+    {
+      id: "56:0xeca88125a5adbe82614ffc12d0db554e2e2867c8",
+      chainId: 56,
+      asset: "USDT",
+      protocolId: "venus",
+      protocolMetadata: {
+        name: "Venus Protocol",
+        websiteUrl: "https://venus.io",
+        vaultUrl: "https://app.venus.io/core-pool"
+      },
+      name: "Venus USDT (BSC)",
+      symbol: "vUSDT",
+      vaultAddress: "0xeca88125a5adbe82614ffc12d0db554e2e2867c8",
+      assetAddress: "0x55d398326f99059fF775485246999027B3197955",
+      apy: { d7: 0.035, d30: 0.034 },
+      tvlUsd: 18_900_000,
+      capUsd: 75_000_000,
+      utilization: 0.52,
+      risk: "medium",
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: "56:0x95c78222b3d6e262426483d42cfa53685a67ab9d",
+      chainId: 56,
+      asset: "USDC",
+      protocolId: "venus",
+      protocolMetadata: {
+        name: "Venus Protocol",
+        websiteUrl: "https://venus.io",
+        vaultUrl: "https://app.venus.io/core-pool"
+      },
+      name: "Venus USDC (BSC)",
+      symbol: "vUSDC",
+      vaultAddress: "0x95c78222b3d6e262426483d42cfa53685a67ab9d",
+      assetAddress: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+      apy: { d7: 0.037, d30: 0.036 },
+      tvlUsd: 14_200_000,
+      capUsd: 55_000_000,
+      utilization: 0.48,
+      risk: "medium",
+      lastUpdated: new Date().toISOString()
+    }
   ]
 };
 
