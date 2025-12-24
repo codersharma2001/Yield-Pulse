@@ -50,14 +50,18 @@ const buildStateOverrides = (
 
   const storage: Record<string, string> = {};
 
-  // Try common balance slot positions (0, 2, 9, 51 are common)
-  for (const slot of [0, 2, 9, 51]) {
+  // Try most common balance slot positions
+  // Slot 0: Standard OpenZeppelin ERC20
+  // Slot 9: USDC and some other proxy tokens
+  for (const slot of [0, 9]) {
     const balanceSlot = mappingSlot(from, slot);
     storage[balanceSlot] = `0x${generousAmount.toString(16)}`;
   }
 
-  // Try common allowance slot positions (1, 3, 10, 52 are common)
-  for (const slot of [1, 3, 10, 52]) {
+  // Try most common allowance slot positions
+  // Slot 1: Standard OpenZeppelin ERC20
+  // Slot 10: USDC and some other proxy tokens
+  for (const slot of [1, 10]) {
     const allowanceSlot = doubleMappingSlot(from, vaultAddress, slot);
     storage[allowanceSlot] = `0x${allowanceAmount.toString(16)}`;
   }
@@ -65,9 +69,9 @@ const buildStateOverrides = (
   overrides[assetAddress.toLowerCase()] = { storage };
 
   // ERC4626 vault share balance for withdraw operations
-  // Try multiple common slot positions for vault shares
+  // Most vaults follow standard ERC20 pattern (slot 0) or proxy pattern (slot 9)
   const vaultStorage: Record<string, string> = {};
-  for (const slot of [0, 2, 9, 51]) {
+  for (const slot of [0, 9]) {
     const shareBalanceSlot = mappingSlot(from, slot);
     vaultStorage[shareBalanceSlot] = `0x${generousAmount.toString(16)}`;
   }
@@ -126,6 +130,14 @@ export async function simulateTenderly(request: SimulationRequest): Promise<Simu
       assets,
       request.action
     );
+
+    console.log("State overrides count:", {
+      addresses: Object.keys(stateOverrides).length,
+      totalStorageSlots: Object.values(stateOverrides).reduce(
+        (sum, override) => sum + (override.storage ? Object.keys(override.storage).length : 0),
+        0
+      )
+    });
 
     const tenderlyClient = getTenderlyClient();
     const tenderlyResponse = await tenderlyClient.simulate({

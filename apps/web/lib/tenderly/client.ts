@@ -55,7 +55,14 @@ export class TenderlyClient {
     });
 
     if (!response.ok) {
-      throw new Error(`Tenderly API error: ${response.statusText}`);
+      let errorDetails = response.statusText;
+      try {
+        const errorBody = await response.json();
+        errorDetails = JSON.stringify(errorBody, null, 2);
+      } catch (e) {
+        // If we can't parse the error body, just use statusText
+      }
+      throw new Error(`Tenderly API error (${response.status}): ${errorDetails}`);
     }
 
     return response.json();
