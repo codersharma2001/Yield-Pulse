@@ -34,29 +34,45 @@ const buildStateOverrides = (
   action: SimulationRequest["action"]
 ): StateOverrides => {
   const overrides: StateOverrides = {};
-  const generousAmount = amountWei * 1_000n || 10n ** 21n;
+  // Use a very large amount to ensure we have enough balance
+  // This simulates having plenty of tokens for testing
+  const generousAmount = 10n ** 30n; // 1 trillion tokens (covers both 6 and 18 decimal tokens)
   const allowanceAmount = generousAmount;
 
-  // Native balance for the caller
+  // Native balance for the caller (ETH for gas)
   overrides[from] = { balance: `0x${NATIVE_BALANCE.toString(16)}` };
 
-  // Underlying ERC20 balances/allowance (assumes OZ layout: balances slot 0, allowances slot 1)
-  const balanceSlot = mappingSlot(from, 0);
-  const allowanceSlot = doubleMappingSlot(from, vaultAddress, 1);
-  overrides[assetAddress.toLowerCase()] = {
-    storage: {
-      [balanceSlot]: `0x${generousAmount.toString(16)}`,
-      [allowanceSlot]: `0x${allowanceAmount.toString(16)}`
-    }
-  };
+  // For ERC20 tokens, try multiple common storage slot layouts
+  // Different tokens use different storage layouts:
+  // - Standard OZ: balances at slot 0, allowances at slot 1
+  // - USDC/USDT: Different slots due to proxy pattern
+  // - Custom implementations: Various other slots
 
-  // ERC4626 share token balance for withdraw path (assumes balances slot 0)
-  const shareBalanceSlot = mappingSlot(from, 0);
-  overrides[vaultAddress.toLowerCase()] = {
-    storage: {
-      [shareBalanceSlot]: `0x${generousAmount.toString(16)}`
-    }
-  };
+  const storage: Record<string, string> = {};
+
+  // Try common balance slot positions (0, 2, 9, 51 are common)
+  for (const slot of [0, 2, 9, 51]) {
+    const balanceSlot = mappingSlot(from, slot);
+    storage[balanceSlot] = `0x${generousAmount.toString(16)}`;
+  }
+
+  // Try common allowance slot positions (1, 3, 10, 52 are common)
+  for (const slot of [1, 3, 10, 52]) {
+    const allowanceSlot = doubleMappingSlot(from, vaultAddress, slot);
+    storage[allowanceSlot] = `0x${allowanceAmount.toString(16)}`;
+  }
+
+  overrides[assetAddress.toLowerCase()] = { storage };
+
+  // ERC4626 vault share balance for withdraw operations
+  // Try multiple common slot positions for vault shares
+  const vaultStorage: Record<string, string> = {};
+  for (const slot of [0, 2, 9, 51]) {
+    const shareBalanceSlot = mappingSlot(from, slot);
+    vaultStorage[shareBalanceSlot] = `0x${generousAmount.toString(16)}`;
+  }
+
+  overrides[vaultAddress.toLowerCase()] = { storage: vaultStorage };
 
   return overrides;
 };
@@ -83,6 +99,20 @@ export async function simulateTenderly(request: SimulationRequest): Promise<Simu
     const vault = vaultDetail.vault;
     const decimals = ["USDC", "USDT", "BUSD"].includes(vault.asset) ? 6 : 18;
     const assets = parseUnits(request.amount, decimals);
+
+    console.log("Tenderly simulation request:", {
+      vaultId: request.vaultId,
+      action: request.action,
+      amount: request.amount,
+      assets: assets.toString(),
+      decimals,
+      vault: {
+        name: vault.name,
+        vaultAddress: vault.vaultAddress,
+        assetAddress: vault.assetAddress,
+        asset: vault.asset
+      }
+    });
 
     const input =
       request.action === "deposit"
@@ -111,10 +141,20 @@ export async function simulateTenderly(request: SimulationRequest): Promise<Simu
     });
 
     if (!tenderlyResponse.transaction.status) {
+      // Log the full error for debugging
+      console.error("Tenderly simulation reverted:", {
+        vaultId: request.vaultId,
+        action: request.action,
+        amount: request.amount,
+        chainId: request.chainId,
+        gasUsed: tenderlyResponse.transaction.gas_used,
+        logs: tenderlyResponse.transaction.logs?.slice(0, 3) // First 3 logs for debugging
+      });
+
       return {
         success: false,
         gasEstimate: tenderlyResponse.transaction.gas_used.toString(),
-        reason: "Transaction would revert (likely allowance/balance)"
+        reason: "Simulation failed - the transaction would revert on-chain. This could be due to: vault deposit limits, paused vault, incorrect token addresses, or other contract restrictions."
       };
     }
 
