@@ -33,6 +33,7 @@ export function VaultActionPanel({ vaultId, chainId, env, asset, symbol, vaultAd
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   // Transaction hooks
   const depositHook = useVaultDeposit(vaultAddress, assetAddress);
@@ -43,11 +44,18 @@ export function VaultActionPanel({ vaultId, chainId, env, asset, symbol, vaultAd
     mutationFn: (body: SimulationRequest) => api.simulate(body, env),
     onSuccess(data) {
       setResult(data);
-      setErrorMessage(null);
+      if (!data.success) {
+        setErrorMessage(data.reason ?? "Simulation failed");
+        setShowErrorModal(true);
+      } else {
+        setErrorMessage(null);
+        setShowErrorModal(false);
+      }
     },
     onError(error) {
       setResult(null);
       setErrorMessage(error instanceof Error ? error.message : "Simulation failed");
+      setShowErrorModal(true);
     }
   });
 
@@ -152,7 +160,7 @@ export function VaultActionPanel({ vaultId, chainId, env, asset, symbol, vaultAd
             Please switch to the correct network (Chain ID: {chainId}) to execute transactions.
           </p>
         ) : null}
-        {errorMessage ? <p className="text-xs text-red-500 dark:text-red-300">{errorMessage}</p> : null}
+        {/* Inline error suppressed in favor of modal */}
 
         {/* Proceed with Real Trade Button */}
         {result?.success && canExecute && !isWrongChain && (
@@ -227,6 +235,22 @@ export function VaultActionPanel({ vaultId, chainId, env, asset, symbol, vaultAd
         onConfirm={handleConfirmTransaction}
         onCancel={handleCancelTransaction}
       />
+      {showErrorModal && errorMessage ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-900">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Simulation failed</h3>
+            <p className="mt-3 text-sm text-slate-700 dark:text-slate-300">{errorMessage}</p>
+            <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+              The transaction would revert in its current state. Check balances/allowances and try again.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowErrorModal(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </Card>
   );
 }
