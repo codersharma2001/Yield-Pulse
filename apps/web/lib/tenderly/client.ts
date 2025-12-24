@@ -21,6 +21,15 @@ interface TenderlySimulationResponse {
   transaction: {
     status: boolean;
     gas_used: number;
+    error_message?: string;
+    error_info?: {
+      error_message?: string;
+      address?: string;
+    };
+    call_trace?: Array<{
+      error?: string;
+      error_message?: string;
+    }>;
     logs: Array<{
       name?: string;
       inputs?: Array<{ name: string; value: string }>;

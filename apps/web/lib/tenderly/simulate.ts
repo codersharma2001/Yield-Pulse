@@ -159,20 +159,30 @@ export async function simulateTenderly(request: SimulationRequest): Promise<Simu
     });
 
     if (!tenderlyResponse.transaction.status) {
+      // Extract revert reason from Tenderly response
+      const errorMessage =
+        tenderlyResponse.transaction.error_message ||
+        tenderlyResponse.transaction.error_info?.error_message ||
+        tenderlyResponse.transaction.call_trace?.[0]?.error_message ||
+        "Unknown error";
+
       // Log the full error for debugging
       console.error("Tenderly simulation reverted:", {
         vaultId: request.vaultId,
+        vault: vault.name,
         action: request.action,
         amount: request.amount,
         chainId: request.chainId,
         gasUsed: tenderlyResponse.transaction.gas_used,
+        errorMessage,
+        errorInfo: tenderlyResponse.transaction.error_info,
         logs: tenderlyResponse.transaction.logs?.slice(0, 3) // First 3 logs for debugging
       });
 
       return {
         success: false,
         gasEstimate: tenderlyResponse.transaction.gas_used.toString(),
-        reason: "Simulation failed - the transaction would revert on-chain. This could be due to: vault deposit limits, paused vault, incorrect token addresses, or other contract restrictions."
+        reason: `Simulation reverted: ${errorMessage}`
       };
     }
 
