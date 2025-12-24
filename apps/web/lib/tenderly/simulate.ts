@@ -14,6 +14,11 @@ const toBytes32 = (value: string | bigint) => {
   return `0x${hex.padStart(64, "0")}` as `0x${string}`;
 };
 
+// Format a bigint as a properly padded 32-byte hex string for storage values
+const toStorageValue = (value: bigint): string => {
+  return `0x${value.toString(16).padStart(64, "0")}`;
+};
+
 // Computes storage slot for mapping(key => value) at given slot index
 const mappingSlot = (key: `0x${string}`, slotIndex: number | bigint) => {
   const slotHex = typeof slotIndex === "bigint" ? slotIndex : BigInt(slotIndex);
@@ -36,11 +41,12 @@ const buildStateOverrides = (
   const overrides: StateOverrides = {};
   // Use a very large amount to ensure we have enough balance
   // This simulates having plenty of tokens for testing
-  const generousAmount = 10n ** 30n; // 1 trillion tokens (covers both 6 and 18 decimal tokens)
+  // 10^24 = 1 million tokens with 18 decimals, or 1 quintillion with 6 decimals
+  const generousAmount = 10n ** 24n;
   const allowanceAmount = generousAmount;
 
   // Native balance for the caller (ETH for gas)
-  overrides[from] = { balance: `0x${NATIVE_BALANCE.toString(16)}` };
+  overrides[from] = { balance: toStorageValue(NATIVE_BALANCE) };
 
   // For ERC20 tokens, try multiple common storage slot layouts
   // Different tokens use different storage layouts:
@@ -55,7 +61,7 @@ const buildStateOverrides = (
   // Slot 9: USDC and some other proxy tokens
   for (const slot of [0, 9]) {
     const balanceSlot = mappingSlot(from, slot);
-    storage[balanceSlot] = `0x${generousAmount.toString(16)}`;
+    storage[balanceSlot] = toStorageValue(generousAmount);
   }
 
   // Try most common allowance slot positions
@@ -63,7 +69,7 @@ const buildStateOverrides = (
   // Slot 10: USDC and some other proxy tokens
   for (const slot of [1, 10]) {
     const allowanceSlot = doubleMappingSlot(from, vaultAddress, slot);
-    storage[allowanceSlot] = `0x${allowanceAmount.toString(16)}`;
+    storage[allowanceSlot] = toStorageValue(allowanceAmount);
   }
 
   overrides[assetAddress.toLowerCase()] = { storage };
@@ -73,7 +79,7 @@ const buildStateOverrides = (
   const vaultStorage: Record<string, string> = {};
   for (const slot of [0, 9]) {
     const shareBalanceSlot = mappingSlot(from, slot);
-    vaultStorage[shareBalanceSlot] = `0x${generousAmount.toString(16)}`;
+    vaultStorage[shareBalanceSlot] = toStorageValue(generousAmount);
   }
 
   overrides[vaultAddress.toLowerCase()] = { storage: vaultStorage };
