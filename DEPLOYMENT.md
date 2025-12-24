@@ -63,7 +63,7 @@ Click on **"Environment Variables"** and add these (if you have them):
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` = Get from [WalletConnect Cloud](https://cloud.walletconnect.com/)
 
 **Optional (for Tenderly simulation):**
-- `NEXT_PUBLIC_TENDERLY_API_KEY` = Your Tenderly API key
+- `NEXT_PUBLIC_TENDERLY_ACCESS_KEY` = Your Tenderly access key
 - `NEXT_PUBLIC_TENDERLY_PROJECT` = Your Tenderly project name
 - `NEXT_PUBLIC_TENDERLY_ACCOUNT` = Your Tenderly account name
 
