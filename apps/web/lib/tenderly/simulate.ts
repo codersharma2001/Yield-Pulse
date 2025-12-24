@@ -19,6 +19,11 @@ const toStorageValue = (value: bigint): string => {
   return `0x${value.toString(16).padStart(64, "0")}`;
 };
 
+const addressVariants = (addr: `0x${string}`) => {
+  const lower = addr.toLowerCase() as `0x${string}`;
+  return Array.from(new Set([addr, lower]));
+};
+
 // Computes storage slot for mapping(key => value) at given slot index
 const mappingSlot = (key: `0x${string}`, slotIndex: number | bigint) => {
   const slotHex = typeof slotIndex === "bigint" ? slotIndex : BigInt(slotIndex);
@@ -39,50 +44,39 @@ const buildStateOverrides = (
   action: SimulationRequest["action"]
 ): StateOverrides => {
   const overrides: StateOverrides = {};
-  // Use a very large amount to ensure we have enough balance
-  // This simulates having plenty of tokens for testing
-  // 10^24 = 1 million tokens with 18 decimals, or 1 quintillion with 6 decimals
   const generousAmount = 10n ** 24n;
   const allowanceAmount = generousAmount;
 
   // Native balance for the caller (ETH for gas)
   overrides[from] = { balance: toStorageValue(NATIVE_BALANCE) };
 
-  // For ERC20 tokens, try multiple common storage slot layouts
-  // Different tokens use different storage layouts:
-  // - Standard OZ: balances at slot 0, allowances at slot 1
-  // - USDC/USDT: Different slots due to proxy pattern
-  // - Custom implementations: Various other slots
+  // ERC20 balances/allowances — cover common OZ/proxy/Maker slots
+  const balanceSlots = [0, 1, 2, 3, 9];
+  const allowanceSlots = [1, 2, 3, 10];
 
   const storage: Record<string, string> = {};
-
-  // Try most common balance slot positions
-  // Slot 0: Standard OpenZeppelin ERC20
-  // Slot 9: USDC and some other proxy tokens
-  for (const slot of [0, 9]) {
+  for (const slot of balanceSlots) {
     const balanceSlot = mappingSlot(from, slot);
     storage[balanceSlot] = toStorageValue(generousAmount);
   }
-
-  // Try most common allowance slot positions
-  // Slot 1: Standard OpenZeppelin ERC20
-  // Slot 10: USDC and some other proxy tokens
-  for (const slot of [1, 10]) {
+  for (const slot of allowanceSlots) {
     const allowanceSlot = doubleMappingSlot(from, vaultAddress, slot);
     storage[allowanceSlot] = toStorageValue(allowanceAmount);
   }
 
-  overrides[assetAddress.toLowerCase()] = { storage };
+  addressVariants(assetAddress).forEach((addr) => {
+    overrides[addr] = { storage };
+  });
 
-  // ERC4626 vault share balance for withdraw operations
-  // Most vaults follow standard ERC20 pattern (slot 0) or proxy pattern (slot 9)
+  // ERC4626 share token balances (withdraw path)
   const vaultStorage: Record<string, string> = {};
-  for (const slot of [0, 9]) {
+  for (const slot of [0, 1, 2, 3, 9]) {
     const shareBalanceSlot = mappingSlot(from, slot);
     vaultStorage[shareBalanceSlot] = toStorageValue(generousAmount);
   }
-
-  overrides[vaultAddress.toLowerCase()] = { storage: vaultStorage };
+  addressVariants(vaultAddress).forEach((addr) => {
+    overrides[addr] = { storage: vaultStorage };
+  });
 
   return overrides;
 };

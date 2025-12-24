@@ -26,6 +26,11 @@ const doubleMappingSlot = (key1: `0x${string}`, key2: `0x${string}`, slotIndex: 
   return keccak256((toBytes32(key2) + first.slice(2)) as `0x${string}`);
 };
 
+const addressVariants = (addr: `0x${string}`) => {
+  const lower = addr.toLowerCase() as `0x${string}`;
+  return Array.from(new Set([addr, lower]));
+};
+
 const buildStateOverrides = (
   from: `0x${string}`,
   vaultAddress: `0x${string}`,
@@ -40,23 +45,29 @@ const buildStateOverrides = (
   // Native balance for the caller
   overrides[from] = { balance: `0x${NATIVE_BALANCE.toString(16)}` };
 
-  // Underlying ERC20 balances/allowance (assumes OZ layout: balances slot 0, allowances slot 1)
-  const balanceSlot = mappingSlot(from, 0);
-  const allowanceSlot = doubleMappingSlot(from, vaultAddress, 1);
-  overrides[assetAddress.toLowerCase()] = {
+  // Underlying ERC20 balances/allowance — seed multiple common slot layouts (0/1/2/3)
+  const balanceSlots = [0n, 1n, 2n, 3n].map((slot) => mappingSlot(from, slot));
+  const allowanceSlots = [1n, 2n, 3n].map((slot) => doubleMappingSlot(from, vaultAddress, slot));
+  const assetOverride = {
     storage: {
-      [balanceSlot]: `0x${generousAmount.toString(16)}`,
-      [allowanceSlot]: `0x${allowanceAmount.toString(16)}`
+      ...Object.fromEntries(balanceSlots.map((slot) => [slot, `0x${generousAmount.toString(16)}`])),
+      ...Object.fromEntries(allowanceSlots.map((slot) => [slot, `0x${allowanceAmount.toString(16)}`]))
     }
   };
+  addressVariants(assetAddress).forEach((addr) => {
+    overrides[addr] = assetOverride;
+  });
 
   // ERC4626 share token balance for withdraw path (assumes balances slot 0)
   const shareBalanceSlot = mappingSlot(from, 0);
-  overrides[vaultAddress.toLowerCase()] = {
+  const vaultOverride = {
     storage: {
       [shareBalanceSlot]: `0x${generousAmount.toString(16)}`
     }
   };
+  addressVariants(vaultAddress).forEach((addr) => {
+    overrides[addr] = vaultOverride;
+  });
 
   return overrides;
 };
